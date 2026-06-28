@@ -1,0 +1,39 @@
+# CI — corre en cada PR y push a main.
+# Verifica que el código compila, pasa lint y tests antes de mergear.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint, build & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build orders
+        run: npm run build:orders
+
+      - name: Build notifications
+        run: npm run build:notifications
+
+      - name: Test
+        run: npm test -- --passWithNoTests

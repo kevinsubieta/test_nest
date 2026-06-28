@@ -1,0 +1,61 @@
+# Lo que NO debe entrar al contexto de Docker.
+# El Dockerfile solo necesita: package*.json, tsconfig*.json, nest-cli.json, apps/, libs/
+
+# Dependencias y build local
+node_modules
+dist
+build
+coverage
+.nyc_output
+
+# Git / GitHub
+.git
+.gitignore
+.github
+
+# IDEs
+.idea
+.vscode
+*.sublime-workspace
+
+# Logs y temporales
+*.log
+logs
+.temp
+.tmp
+pids
+*.pid
+
+# Variables de entorno (nunca al contexto)
+.env
+.env.*
+!.env.example
+
+# Infra (no se usa dentro del build de la app)
+terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Scripts y artefactos de deploy
+Makefile
+deploy.sh
+destroy.sh
+*.zip
+
+# Docker (no se necesita dentro de su propio contexto)
+.dockerignore
+docker-compose*.yml
+
+# Tests y docs
+test
+*.md
+
+# Config de tooling (no se usa en runtime/build)
+.prettierrc
+eslint.config.mjs
+
+# OS
+.DS_Store
+Thumbs.db
