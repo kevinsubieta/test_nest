@@ -1,0 +1,156 @@
+# Destroy — borra toda la infra de AWS. Solo se dispara manualmente.
+#
+# Requiere escribir "destroy" en el input para evitar accidentes.
+# Usa los mismos secrets/variables que deploy.yml.
+#
+# Pasos:
+#   1. Validar confirmación
+#   2. Vaciar repositorios ECR (terraform destroy falla si tienen imágenes)
+#   3. terraform destroy con el backend remoto
+#   4. (Opcional) borrar bucket S3 + tabla DynamoDB del state
+
+name: Destroy AWS infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escribí "destroy" para confirmar (case-sensitive)'
+        required: true
+        type: string
+      delete_state_backend:
+        description: 'También borrar bucket S3 + tabla DynamoDB del state'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_WORKING_DIR: terraform/option-b-ecs
+  TF_STATE_KEY: test-nest/terraform.tfstate
+  TF_LOCK_TABLE: test-nest-tflock
+
+jobs:
+  destroy:
+    name: Destroy infrastructure
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [[ "${{ inputs.confirm }}" != "destroy" ]]; then
+            echo "::error::Debés escribir exactamente 'destroy' para confirmar. Recibido: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=${TF_STATE_KEY}" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
+
+      # ECR debe estar vacío antes del destroy, si no Terraform falla con
+      # "RepositoryNotEmptyException".
+      - name: Empty ECR repositories
+        run: |
+          set -euo pipefail
+          REGION="${{ vars.AWS_REGION }}"
+
+          empty_repo() {
+            local repo="$1"
+            if ! aws ecr describe-repositories --repository-names "$repo" --region "$REGION" >/dev/null 2>&1; then
+              echo "→ Repo '$repo' no existe, salteo"
+              return 0
+            fi
+            local images
+            images=$(aws ecr list-images --repository-name "$repo" --region "$REGION" --query 'imageIds[*]' --output json)
+            if [[ "$images" == "[]" ]]; then
+              echo "→ Repo '$repo' ya está vacío"
+              return 0
+            fi
+            aws ecr batch-delete-image --repository-name "$repo" --region "$REGION" --image-ids "$images" >/dev/null
+            echo "✔ Repo '$repo' vaciado"
+          }
+
+          empty_repo "test-nest/orders"
+          empty_repo "test-nest/notifications"
+
+      - name: Terraform destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform destroy -auto-approve -input=false \
+            -var="aws_region=${{ vars.AWS_REGION }}"
+
+      # Borrar el backend (bucket + tabla) solo si se pidió explícitamente.
+      # Útil si querés borrar TODO incluso el state remoto (ej: cerrar el proyecto).
+      - name: Delete state backend (opcional)
+        if: ${{ inputs.delete_state_backend }}
+        run: |
+          set -euo pipefail
+          REGION="${{ vars.AWS_REGION }}"
+          BUCKET="${{ vars.TF_STATE_BUCKET }}"
+          TABLE="${TF_LOCK_TABLE}"
+
+          echo "→ Borrando todas las versiones del bucket $BUCKET"
+          aws s3api list-object-versions --bucket "$BUCKET" \
+            --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' --output json \
+            > /tmp/versions.json
+          if [[ "$(jq '.Objects | length' /tmp/versions.json)" -gt 0 ]]; then
+            aws s3api delete-objects --bucket "$BUCKET" --delete file:///tmp/versions.json >/dev/null
+          fi
+
+          aws s3api list-object-versions --bucket "$BUCKET" \
+            --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' --output json \
+            > /tmp/markers.json
+          if [[ "$(jq '.Objects | length' /tmp/markers.json)" -gt 0 ]]; then
+            aws s3api delete-objects --bucket "$BUCKET" --delete file:///tmp/markers.json >/dev/null
+          fi
+
+          aws s3api delete-bucket --bucket "$BUCKET" --region "$REGION"
+          echo "✔ Bucket $BUCKET eliminado"
+
+          aws dynamodb delete-table --table-name "$TABLE" --region "$REGION" >/dev/null
+          echo "✔ Tabla $TABLE eliminada"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Destroy completado"
+            echo ""
+            echo "- **Recursos AWS:** destruidos"
+            if [[ "${{ inputs.delete_state_backend }}" == "true" ]]; then
+              echo "- **State backend (S3 + DynamoDB):** eliminado"
+            else
+              echo "- **State backend:** conservado (re-deploy futuro reutiliza)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
