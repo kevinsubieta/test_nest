@@ -1,13 +1,6 @@
 # Terraform Plan — corre en PRs que tocan infra y postea el plan como comentario.
-#
 # Solo se dispara cuando el PR modifica algo en terraform/ (o este workflow).
 # Para PRs solo-código no aporta — la infra no cambia.
-#
-# El comentario es "sticky": se actualiza en lugar de duplicarse en cada push al PR.
-#
-# Usa los MISMOS secrets/variables que deploy.yml:
-#   Secrets:   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-#   Variables: AWS_REGION, TF_STATE_BUCKET
 
 name: Terraform Plan
 
