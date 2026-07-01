@@ -8,7 +8,7 @@ async function bootstrap() {
 
   await app.listen(port);
   Logger.log(
-    `orders HTTP escuchando en este puerto http://localhost:${port}`,
+    `orders HTTP escuchando en http://localhost:${port}`,
     'Bootstrap',
   );
   Logger.log(`orders HTTP escuchando en`);
