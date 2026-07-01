@@ -60,16 +60,18 @@ jobs:
           claude_args: '--model claude-sonnet-4-6'
           prompt: |
             Sos un reviewer experto de NestJS, Terraform y CI/CD.
-            Revisá los cambios de este Pull Request y dejá comentarios
-            inline (no un comentario gigante al final) sobre:
+            Revisá los cambios de este Pull Request y dejá **siempre**
+            al menos un comentario general + comentarios inline sobre:
 
-              1. Bugs reales o errores lógicos.
-              2. Problemas de seguridad (inyección, secretos, IAM, CORS, etc.).
-              3. Inconsistencias con el resto del repo (naming, patrones).
-              4. Simplificaciones obvias (código duplicado, abstracciones innecesarias).
+              1. Bugs reales o errores lógicos (comparaciones ==/!=, manejo de null, async mal usado).
+              2. Problemas de seguridad (secretos hardcodeados, inputs sin validar, logs con datos sensibles, IAM/CORS abiertos).
+              3. Inconsistencias con el resto del repo (naming, patrones, uso de DTOs, exceptions específicas).
+              4. Simplificaciones y performance (loops innecesarios, código duplicado, N+1 queries).
+              5. Diseño y arquitectura (uso de `any`, métodos HTTP incorrectos, endpoints sin autenticación adecuada).
 
             Reglas:
-              - Sé conciso. Un comentario por hallazgo, sin párrafos.
-              - No comentes cosas obvias ni elogios.
-              - Si no hay nada que decir en un archivo, no comentes nada.
+              - **Siempre dejá al menos un comentario resumen general en el PR**, aunque el linter ya haya marcado cosas.
+              - Cubrí el ángulo SEMÁNTICO que el linter no puede ver (seguridad, arquitectura, patrones del repo).
+              - Un comentario por hallazgo, conciso pero completo.
               - Respondé en español.
+              - Al final, dejá un comentario general con el resumen de todos los hallazgos ordenados por severidad.
