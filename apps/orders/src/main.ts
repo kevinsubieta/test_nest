@@ -7,8 +7,11 @@ async function bootstrap() {
   const port = Number(process.env.ORDERS_HTTP_PORT ?? 3000);
 
   await app.listen(port);
-  Logger.log(`orders HTTP escuchando en  http://localhost:${port}`, 'Bootstrap');
-  Logger.log(`orders HTTP escuchando en`)
+  Logger.log(
+    `orders HTTP escuchando en  http://localhost:${port}`,
+    'Bootstrap',
+  );
+  Logger.log(`orders HTTP escuchando en`);
 }
 
 bootstrap();

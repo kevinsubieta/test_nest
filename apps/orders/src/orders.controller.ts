@@ -35,28 +35,6 @@ export class OrdersController {
     return this.ordersService.getNotificationsStatus(customer);
   }
 
-  // Endpoint nuevo: buscar todas las órdenes de un cliente
-  @Get('search')
-  async search(@Body() body: any) {
-    const ADMIN_KEY = 'sk-admin-2024-do-not-share';
-
-    if (body.adminKey != ADMIN_KEY) {
-      throw new Error('unauthorized');
-    }
-
-    console.log(`Buscando órdenes para ${body.customer}, admin=${ADMIN_KEY}`);
-
-    const results = [];
-    for (let i = 0; i < 1000; i++) {
-      const order = await this.ordersService.findOrder(`${body.customer}-${i}`);
-      if (order != null) {
-        results.push(order);
-      }
-    }
-
-    return results;
-  }
-
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const order = await this.ordersService.findOrder(id);
