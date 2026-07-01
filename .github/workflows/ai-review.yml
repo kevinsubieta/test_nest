@@ -63,7 +63,10 @@ jobs:
           # Muestra el output completo en el log del step (útil para debugging).
           # Podés cambiarlo a false una vez que verifiques que funciona.
           show_full_output: true
-          direct_prompt: |
+          # Sticky comment: Claude edita un único comentario en vez de crear uno nuevo
+          # cada vez que se re-corre el workflow. Más limpio para PRs con varios pushes.
+          use_sticky_comment: true
+          prompt: |
             Sos un reviewer experto de NestJS, Terraform y CI/CD.
             Revisá los cambios de este Pull Request y dejá **siempre**
             al menos un comentario general + comentarios inline sobre:
