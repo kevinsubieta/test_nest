@@ -1,40 +1,44 @@
 # AI Code Review con Claude — lo más trending en CI/CD 2026.
 #
 # Qué hace:
-#   Cuando se pushea código que toca apps/**, Claude lee el diff de
-#   ese push y deja su review como:
-#     - comentarios en el commit (visibles en la pestaña Commits)
-#     - job summary en la corrida de Actions
+#   Cuando se abre o actualiza un Pull Request, Claude lee el diff y
+#   deja comentarios inline sobre:
+#     - bugs o errores lógicos
+#     - problemas de seguridad
+#     - oportunidades de simplificación
+#     - inconsistencias con el resto del repo
 #
-# Se activa solo cuando cambian archivos de las apps — así no gasta
-# tokens revisando cambios de docs, terraform o configuración de CI.
+# También se puede invocar manualmente comentando "@claude <pregunta>"
+# en cualquier PR o issue.
 #
-# Requisitos (Settings → Secrets and variables → Actions):
+# Requisitos (Settings → Secrets and variables → Actions → Secrets):
 #   ANTHROPIC_API_KEY  → tu API key de https://console.anthropic.com/
 #
 # Por qué importa para el módulo:
 #   Es el patrón "AI-augmented CI/CD" que se está volviendo standard.
 #   Empresas como Vercel, Shopify y Cloudflare lo usan en producción.
-#   Claude revisa el 80% mecánico (bugs, edge cases, naming); el
-#   humano se queda con arquitectura y decisiones.
+#   El reviewer humano sigue siendo el que aprueba, pero Claude levanta
+#   el 80% del trabajo mecánico (typos, edge cases, naming, etc.).
 
 name: AI Code Review
 
 on:
-  push:
-    paths:
-      - 'apps/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
 
 jobs:
   claude-review:
-    name: Claude reviews this push
+    name: Claude reviews this PR
     runs-on: ubuntu-latest
 
-    # Permisos necesarios:
-    #   contents: read           → leer el código
-    #   issues: write            → crear/comentar issues si aplica
-    #   pull-requests: write     → comentar en PRs asociados al push
-    #   id-token: write          → OIDC (algunas versiones lo requieren)
+    # Permisos que la action necesita para:
+    #   - leer el código del PR
+    #   - dejar comentarios y reviews
+    #   - leer el estado de los checks (para entender contexto)
     permissions:
       contents: read
       pull-requests: write
@@ -45,36 +49,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # fetch-depth: 0 → historial completo para poder diffear
-          # entre el commit anterior (${{ github.event.before }}) y el actual.
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Run Claude Code Review
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Modelo: Sonnet 4.6 es la mejor relación costo/calidad para reviews.
+          # Para reviews muy críticos podés cambiar a claude-opus-4-8.
           claude_args: '--model claude-sonnet-4-6'
           prompt: |
-            Sos un reviewer experto de NestJS y microservicios.
-            Se acaba de pushear código a la rama ${{ github.ref_name }}.
+            Sos un reviewer experto de NestJS, Terraform y CI/CD.
+            Revisá los cambios de este Pull Request y dejá comentarios
+            inline (no un comentario gigante al final) sobre:
 
-            El diff a revisar es entre estos dos commits:
-              - antes:  ${{ github.event.before }}
-              - ahora:  ${{ github.event.after }}
-
-            Podés obtener el diff con:
-              git diff ${{ github.event.before }} ${{ github.event.after }} -- apps/
-
-            Revisá los cambios y buscá:
               1. Bugs reales o errores lógicos.
-              2. Problemas de seguridad (inyección, secretos, validación).
+              2. Problemas de seguridad (inyección, secretos, IAM, CORS, etc.).
               3. Inconsistencias con el resto del repo (naming, patrones).
               4. Simplificaciones obvias (código duplicado, abstracciones innecesarias).
 
             Reglas:
-              - Sé conciso. Un hallazgo por punto, sin párrafos largos.
-              - No comentes elogios ni cosas obvias.
-              - Si no hay nada que decir, decilo en una línea.
+              - Sé conciso. Un comentario por hallazgo, sin párrafos.
+              - No comentes cosas obvias ni elogios.
+              - Si no hay nada que decir en un archivo, no comentes nada.
               - Respondé en español.
-              - Al final, escribí el review completo en el job summary
-                usando el archivo $GITHUB_STEP_SUMMARY.
