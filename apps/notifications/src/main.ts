@@ -20,7 +20,7 @@ async function bootstrap() {
   );
 
   await app.listen();
-  Logger.log('notifications escuchando eventos NATS', 'Bootstrap');
+  Logger.log('notifications escuchando eventos NATS Server', 'Bootstrap');
 }
 
 bootstrap();
