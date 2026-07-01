@@ -106,8 +106,10 @@ jobs:
             exit 0
           fi
 
-          # Extraer el campo "result" del JSON con jq
-          REVIEW=$(jq -r '.result // empty' "$OUTPUT_FILE")
+          # El JSON de Claude es un array de eventos de streaming.
+          # Buscamos el evento con type=="result" y extraemos su campo .result.
+          # Usamos `..` para caminar todo el JSON por si el shape cambia.
+          REVIEW=$(jq -r '[.. | objects | select(.type? == "result") | .result] | last // empty' "$OUTPUT_FILE")
 
           if [ -z "$REVIEW" ]; then
             echo "Claude no devolvió un review."
