@@ -59,7 +59,7 @@ jobs:
           # Para reviews muy críticos podés cambiar a claude-opus-4-8.
           # --allowedTools: le damos permiso explícito a las herramientas de review de GitHub
           # para que pueda dejar comentarios inline y submitear el review.
-          claude_args: '--model claude-sonnet-4-6 --allowedTools "mcp__github__create_pending_pull_request_review,mcp__github__add_pull_request_review_comment_to_pending_review,mcp__github__submit_pending_pull_request_review,mcp__github_comment__update_claude_comment"'
+          claude_args: '--model claude-sonnet-4-6'
           # Muestra el output completo en el log del step (útil para debugging).
           # Podés cambiarlo a false una vez que verifiques que funciona.
           show_full_output: true
@@ -67,19 +67,22 @@ jobs:
           # cada vez que se re-corre el workflow. Más limpio para PRs con varios pushes.
           use_sticky_comment: true
           prompt: |
-            Sos un reviewer experto de NestJS, Terraform y CI/CD.
-            Revisá los cambios de este Pull Request y dejá **siempre**
-            al menos un comentario general + comentarios inline sobre:
+            IMPORTANTE: NO uses ningún slash command ni skill (nada de /review, /code-review, /security-review).
+            NO llames a `gh pr list` ni intentes listar PRs. Ya estás dentro del contexto del PR correcto.
 
-              1. Bugs reales o errores lógicos (comparaciones ==/!=, manejo de null, async mal usado).
-              2. Problemas de seguridad (secretos hardcodeados, inputs sin validar, logs con datos sensibles, IAM/CORS abiertos).
-              3. Inconsistencias con el resto del repo (naming, patrones, uso de DTOs, exceptions específicas).
-              4. Simplificaciones y performance (loops innecesarios, código duplicado, N+1 queries).
-              5. Diseño y arquitectura (uso de `any`, métodos HTTP incorrectos, endpoints sin autenticación adecuada).
+            Tu tarea:
+            1. Leé los archivos del working directory (ya están checkouteados en la branch del PR).
+            2. Compará contra la branch base usando `git diff origin/main...HEAD` para ver qué cambió.
+            3. Revisá los cambios buscando:
+               - Bugs (comparaciones ==/!=, manejo de null, async mal usado, `any` en TypeScript)
+               - Seguridad (secretos hardcodeados, inputs sin validar, logs con datos sensibles)
+               - Inconsistencias con el resto del repo (naming, uso de DTOs, exceptions)
+               - Simplificaciones (loops innecesarios, código duplicado, N+1 queries)
+               - Arquitectura (métodos HTTP incorrectos, endpoints sin auth adecuada)
+            4. Publicá UN comentario general en el PR con tus hallazgos ordenados por severidad,
+               en español, conciso y directo.
 
-            Reglas:
-              - **Siempre dejá al menos un comentario resumen general en el PR**, aunque el linter ya haya marcado cosas.
-              - Cubrí el ángulo SEMÁNTICO que el linter no puede ver (seguridad, arquitectura, patrones del repo).
-              - Un comentario por hallazgo, conciso pero completo.
-              - Respondé en español.
-              - Al final, dejá un comentario general con el resumen de todos los hallazgos ordenados por severidad.
+            Contexto del proyecto:
+            - Monorepo NestJS con microservicios (orders, notifications) comunicándose por NATS
+            - Infraestructura en AWS ECS Fargate definida en Terraform
+            - CI/CD con GitHub Actions
