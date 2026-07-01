@@ -86,3 +86,42 @@ jobs:
             - Monorepo NestJS con microservicios (orders, notifications) comunicándose por NATS
             - Infraestructura en AWS ECS Fargate definida en Terraform
             - CI/CD con GitHub Actions
+
+      # -------------------------------------------------------------------
+      # Fallback: si Claude generó un review pero no logró postearlo,
+      # extraemos el resultado del JSON de output y lo posteamos como
+      # comentario en el PR usando el GITHUB_TOKEN (que sí tiene permisos).
+      # -------------------------------------------------------------------
+      - name: Post Claude review as PR comment
+        if: github.event_name == 'pull_request' && always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          OUTPUT_FILE="/home/runner/work/_temp/claude-execution-output.json"
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "No hay output de Claude para postear."
+            exit 0
+          fi
+
+          # Extraer el campo "result" del JSON con jq
+          REVIEW=$(jq -r '.result // empty' "$OUTPUT_FILE")
+
+          if [ -z "$REVIEW" ]; then
+            echo "Claude no devolvió un review."
+            exit 0
+          fi
+
+          # Guardar el review en un archivo para pasarlo con --body-file
+          # (--body directo puede fallar con textos largos)
+          echo "## 🤖 Review automático por Claude" > /tmp/review.md
+          echo "" >> /tmp/review.md
+          echo "$REVIEW" >> /tmp/review.md
+          echo "" >> /tmp/review.md
+          echo "---" >> /tmp/review.md
+          echo "_Generado por [Claude Code Action](https://github.com/anthropics/claude-code-action) — modelo: claude-sonnet-4-6_" >> /tmp/review.md
+
+          gh pr comment "$PR_NUMBER" --body-file /tmp/review.md
+          echo "✔ Review posteado al PR #$PR_NUMBER"
