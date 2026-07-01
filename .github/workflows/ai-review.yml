@@ -57,8 +57,13 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Modelo: Sonnet 4.6 es la mejor relación costo/calidad para reviews.
           # Para reviews muy críticos podés cambiar a claude-opus-4-8.
-          claude_args: '--model claude-sonnet-4-6'
-          prompt: |
+          # --allowedTools: le damos permiso explícito a las herramientas de review de GitHub
+          # para que pueda dejar comentarios inline y submitear el review.
+          claude_args: '--model claude-sonnet-4-6 --allowedTools "mcp__github__create_pending_pull_request_review,mcp__github__add_pull_request_review_comment_to_pending_review,mcp__github__submit_pending_pull_request_review,mcp__github_comment__update_claude_comment"'
+          # Muestra el output completo en el log del step (útil para debugging).
+          # Podés cambiarlo a false una vez que verifiques que funciona.
+          show_full_output: true
+          direct_prompt: |
             Sos un reviewer experto de NestJS, Terraform y CI/CD.
             Revisá los cambios de este Pull Request y dejá **siempre**
             al menos un comentario general + comentarios inline sobre:
