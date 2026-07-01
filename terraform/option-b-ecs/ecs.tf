@@ -145,6 +145,13 @@ resource "aws_ecs_service" "orders" {
     registry_arn = aws_service_discovery_service.orders.arn
   }
 
+  # Una vez creado el servicio, el auto-scaling (ver autoscaling.tf) toma el control
+  # de desired_count. Sin este ignore_changes, cada `terraform apply` lo resetearía
+  # al valor inicial y pelearíamos contra el autoscaler.
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+
   depends_on = [aws_lb_listener.http]
 }
 

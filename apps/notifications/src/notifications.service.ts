@@ -5,7 +5,10 @@ import { OrderCreatedEvent, NotificationsStatusResponse } from '@app/contracts';
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  private readonly sentByCustomer = new Map<string, { count: number; last: string }>();
+  private readonly sentByCustomer = new Map<
+    string,
+    { count: number; last: string }
+  >();
 
   handleOrderCreated(event: OrderCreatedEvent): void {
     this.logger.log(

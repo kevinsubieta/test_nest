@@ -44,15 +44,33 @@ variable "azs" {
 }
 
 variable "orders_desired_count" {
-  description = "Número de tareas Fargate para orders."
+  description = "Cantidad inicial de réplicas Fargate para orders. El auto-scaling puede subirlo hasta orders_max_count."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "notifications_desired_count" {
-  description = "Número de tareas Fargate para notifications."
+  description = "Cantidad inicial de réplicas Fargate para notifications."
   type        = number
-  default     = 1
+  default     = 2
+}
+
+variable "orders_min_count" {
+  description = "Mínimo de réplicas para orders (auto-scaling)."
+  type        = number
+  default     = 2
+}
+
+variable "orders_max_count" {
+  description = "Máximo de réplicas para orders (auto-scaling)."
+  type        = number
+  default     = 5
+}
+
+variable "orders_cpu_target" {
+  description = "% de CPU objetivo. Si la media supera esto, el auto-scaling agrega tasks."
+  type        = number
+  default     = 60
 }
 
 variable "task_cpu" {
