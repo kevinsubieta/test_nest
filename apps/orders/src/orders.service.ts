@@ -60,6 +60,27 @@ export class OrdersService implements OnModuleInit {
     return raw ? (JSON.parse(raw) as OrderCreatedEvent) : null;
   }
 
+  async searchByCustomer(customer: string, limit?: string): Promise<any[]> {
+    // Trae todas las ordenes que matcheen y filtra en memoria.
+    const keys = await this.redis.keys(`${ORDER_KEY_PREFIX}*`);
+    const max = parseInt(limit ?? '100');
+    const results: any[] = [];
+
+    for (const key of keys) {
+      const raw = await this.redis.get(key);
+      const order = JSON.parse(raw!) as OrderCreatedEvent;
+      if (order.customer == customer) {
+        results.push(order);
+      }
+      if (results.length == max) break;
+    }
+
+    this.logger.log(
+      `Encontradas ${results.length} ordenes para ${customer}`,
+    );
+    return results;
+  }
+
   async getNotificationsStatus(
     customer: string,
   ): Promise<NotificationsStatusResponse> {

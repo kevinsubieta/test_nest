@@ -3,14 +3,18 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   NotFoundException,
   Param,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CreateOrderDto, OrdersService } from './orders.service';
 
 @Controller('orders')
 export class OrdersController {
+  private readonly logger = new Logger(OrdersController.name);
+
   constructor(private readonly ordersService: OrdersService) {}
 
   // Devuelve el hostname de la task que respondió. Sirve para ver en vivo
@@ -27,7 +31,16 @@ export class OrdersController {
 
   @Post()
   create(@Body() dto: CreateOrderDto) {
+    this.logger.log(`Nueva orden recibida: ${JSON.stringify(dto)}`);
     return this.ordersService.createOrder(dto);
+  }
+
+  @Get('search')
+  search(
+    @Query('customer') customer: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.ordersService.searchByCustomer(customer, limit);
   }
 
   @Get('status/:customer')
